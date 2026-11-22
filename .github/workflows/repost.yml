@@ -1,0 +1,27 @@
+name: Repost digest
+
+# Manual only: posts today's digest again in the current format and deletes the old message.
+on:
+  workflow_dispatch:
+    inputs:
+      old_message_id:
+        description: "Message number of the old digest in the channel (t.me/channel/<number>)"
+        required: true
+
+jobs:
+  repost:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - name: Repost
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL_ID: ${{ vars.CHANNEL_ID || '@znyzhkomat' }}
+          OLD_ID: ${{ inputs.old_message_id }}
+        run: python -m tools.repost_digest "$OLD_ID"
