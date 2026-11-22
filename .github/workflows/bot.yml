@@ -2,7 +2,7 @@ name: Steam deals bot
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes (GitHub may start a few minutes late)
+    - cron: "17,47 * * * *"   # twice an hour; off-peak minutes start more reliably than :00/:30
   workflow_dispatch:          # "Run workflow" button for a manual run
 
 concurrency:
