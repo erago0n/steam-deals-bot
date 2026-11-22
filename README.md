@@ -16,7 +16,7 @@ A Telegram bot that scans **every discounted game on Steam**, picks the ones wor
 
 1. Fork / push this repo to GitHub (public repos get free Actions minutes).
 2. Add the bot token as a secret: **Settings → Secrets and variables → Actions → New repository secret** → `BOT_TOKEN`.
-3. Optionally add **variables** (same page, *Variables* tab): `CHANNEL_ID`, `MIN_DISCOUNT`, `MIN_REVIEWS`, `MIN_POSITIVE`, `POSTS_PER_CHECK`, `DIGEST_HOUR`, `MAX_SINGLES_PER_DAY`, `DIGEST_HOURS`.
+3. Optionally add **variables** (same page, *Variables* tab): `CHANNEL_ID`, `MIN_DISCOUNT`, `MIN_REVIEWS`, `MIN_POSITIVE`, `POSTS_PER_CHECK`, `MAX_SINGLES_PER_DAY`, `DIGEST_HOURS`.
 4. Open **Actions → Steam deals bot → Run workflow** for the first run. After that it runs every 30 minutes by itself.
 
 ## Run locally (always-on, with commands)
@@ -57,11 +57,11 @@ bot/
   sources.py     # Steam search (all discounts), CheapShark record lows, Steam appdetails
   formatting.py  # Telegram HTML templates (single post, digest captions)
   image.py       # digest cover image (Pillow)
-assets/fonts/    # Oswald (SIL Open Font License)
   core.py        # one posting cycle: single posts + daily digest
   run_once.py    # cloud entry point (GitHub Actions)
   main.py        # always-on mode with bot commands
   storage.py     # SQLite: posted deals + cache
+assets/fonts/    # Oswald (SIL Open Font License)
 .github/workflows/bot.yml  # runs every 30 min, saves state to the "state" branch
 ```
 
