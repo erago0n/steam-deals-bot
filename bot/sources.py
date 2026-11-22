@@ -136,10 +136,20 @@ async def fetch_steam_discounts(session: aiohttp.ClientSession, max_items: int =
             "specials": "1", "infinite": "1", "start": str(start), "count": "100",
             "cc": "ua", "l": "english", "category1": "998",  # 998 = games only
         }
-        try:
-            data = await _get_json(session, STEAM_SEARCH_URL, params)
-        except Exception as exc:
-            log.warning("Steam search page at %d failed: %s", start, exc)
+        data = None
+        for attempt in range(3):
+            try:
+                data = await _get_json(session, STEAM_SEARCH_URL, params)
+                break
+            except aiohttp.ClientResponseError as exc:
+                if exc.status != 429 or attempt == 2:
+                    log.warning("Steam search page at %d failed: %s", start, exc)
+                    break
+                await asyncio.sleep(15 * (attempt + 1))  # Steam rate limit: wait and retry
+            except Exception as exc:
+                log.warning("Steam search page at %d failed: %s", start, exc)
+                break
+        if data is None:
             break
         total = int(data.get("total_count") or 0)
         page_html = data.get("results_html", "")

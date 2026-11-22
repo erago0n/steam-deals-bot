@@ -33,19 +33,18 @@ jobs:
 
       - name: Install
         run: |
-          sudo apt-get install -y -qq fonts-dejavu-core >/dev/null
           pip install -q -r requirements.txt
 
       - name: Post deals
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHANNEL_ID: ${{ vars.CHANNEL_ID || '@steam_znyzhky_ua' }}
+          CHANNEL_ID: ${{ vars.CHANNEL_ID || '@znyzhkomat' }}
           MIN_DISCOUNT: ${{ vars.MIN_DISCOUNT }}
           MIN_REVIEWS: ${{ vars.MIN_REVIEWS }}
           MIN_POSITIVE: ${{ vars.MIN_POSITIVE }}
           POSTS_PER_CHECK: ${{ vars.POSTS_PER_CHECK }}
-          DIGEST_HOUR: ${{ vars.DIGEST_HOUR }}
-          DIGEST_PARTS: ${{ vars.DIGEST_PARTS }}
+          MAX_SINGLES_PER_DAY: ${{ vars.MAX_SINGLES_PER_DAY }}
+          DIGEST_HOURS: ${{ vars.DIGEST_HOURS }}
         run: python -m bot.run_once
 
       - name: Save state

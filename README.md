@@ -7,7 +7,7 @@ A Telegram bot that scans **every discounted game on Steam**, picks the ones wor
 - **Record lows:** checks the all-time lowest price (CheapShark) and highlights record deals
 - **Two post types:**
   - single post for every record-low deal: cover, Ukrainian description, UAH + USD price, review score
-  - daily digest: **one message with a generated collage image** (hero banner + grid with prices and discount badges) and the full list of linked games in the caption, split into several parts if needed
+  - 1-2 digest posts a day: **a generated cover** (wall of game covers, big title, neon date) and the list of linked games in an expandable quote
 - **No duplicates:** SQLite state; the digest only shows deals that were not in a previous digest
 - **Free cloud hosting:** GitHub Actions runs it every 30 minutes and keeps the state in a `state` branch
 - **Optional always-on mode** with bot commands `/top`, `/digest`, `/filter`
@@ -16,7 +16,7 @@ A Telegram bot that scans **every discounted game on Steam**, picks the ones wor
 
 1. Fork / push this repo to GitHub (public repos get free Actions minutes).
 2. Add the bot token as a secret: **Settings → Secrets and variables → Actions → New repository secret** → `BOT_TOKEN`.
-3. Optionally add **variables** (same page, *Variables* tab): `CHANNEL_ID`, `MIN_DISCOUNT`, `MIN_REVIEWS`, `MIN_POSITIVE`, `POSTS_PER_CHECK`, `DIGEST_HOUR`, `DIGEST_PARTS`.
+3. Optionally add **variables** (same page, *Variables* tab): `CHANNEL_ID`, `MIN_DISCOUNT`, `MIN_REVIEWS`, `MIN_POSITIVE`, `POSTS_PER_CHECK`, `DIGEST_HOUR`, `MAX_SINGLES_PER_DAY`, `DIGEST_HOURS`.
 4. Open **Actions → Steam deals bot → Run workflow** for the first run. After that it runs every 30 minutes by itself.
 
 ## Run locally (always-on, with commands)
@@ -42,13 +42,13 @@ docker run -d --restart unless-stopped --env-file .env -v $(pwd)/data:/app/data 
 | `BOT_TOKEN` | — | Token from @BotFather |
 | `CHANNEL_ID` | — | `@channel_name` or numeric id `-100…` |
 | `MIN_DISCOUNT` | `50` | Minimum discount, % |
-| `MIN_REVIEWS` | `300` | Minimum number of Steam user reviews |
+| `MIN_REVIEWS` | `5000` | Minimum number of Steam user reviews |
 | `MIN_POSITIVE` | `70` | Minimum % of positive reviews |
 | `MAX_SCAN` | `2000` | How many discounted games to scan per run (most relevant first) |
-| `POSTS_PER_CHECK` | `2` | Single posts per run |
+| `POSTS_PER_CHECK` | `1` | Single posts per run |
+| `MAX_SINGLES_PER_DAY` | `2` | Cap on single record-low posts per day |
 | `RECORDS_ONLY` | `true` | Single posts only for all-time-low prices |
-| `DIGEST_HOUR` | `20` | Daily digest hour (Kyiv time), `-1` to disable |
-| `DIGEST_PARTS` | `3` | Max digest messages per day |
+| `DIGEST_HOURS` | `13,20` | Digest post hours (Kyiv time), empty to disable |
 
 ## Project structure
 
@@ -56,7 +56,8 @@ docker run -d --restart unless-stopped --env-file .env -v $(pwd)/data:/app/data 
 bot/
   sources.py     # Steam search (all discounts), CheapShark record lows, Steam appdetails
   formatting.py  # Telegram HTML templates (single post, digest captions)
-  image.py       # digest collage image (Pillow)
+  image.py       # digest cover image (Pillow)
+assets/fonts/    # Oswald (SIL Open Font License)
   core.py        # one posting cycle: single posts + daily digest
   run_once.py    # cloud entry point (GitHub Actions)
   main.py        # always-on mode with bot commands

@@ -65,16 +65,16 @@ def format_deal(deal: Deal, channel: str | None = None) -> str:
     return "\n".join(lines)
 
 
-def digest_caption(deals: list[Deal], day: date, part: int, parts: int,
-                   channel: str | None = None, max_chars: int = CAPTION_LIMIT) -> tuple[str, list[Deal]]:
-    """Caption for one digest message; returns it and the deals that fit in it."""
-    title = f"⚡️ ЗНИЖКИ НА {human_date(day).upper()}"
-    if parts > 1:
-        title += f" • {part}/{parts}"
-    head = [title, ""]
-    legend = ["", f"{RECORD} — рекорд  {REGULAR} — звичайна", "🔥 — Беру  🤷‍♂️ — Нічого цікавого"]
+def digest_caption(deals: list[Deal], day: date, channel: str | None = None,
+                   max_chars: int = CAPTION_LIMIT) -> tuple[str, list[Deal]]:
+    """Caption for a digest post: the game list sits in an expandable quote.
+
+    Returns the caption and the deals that fit (photo captions are capped by Telegram).
+    """
+    head = [f"⚡️ <b>ЗНИЖКИ!</b> НА {human_date(day).upper()}", "", "Відкриваємо вкладку:"]
+    legend = ["", "🔥 — Беру", "🤷‍♂️ — Нічого цікавого", "", f"{RECORD} — рекордна знижка"]
     if channel:
-        legend += ["", channel]
+        legend += [channel]
 
     rows: list[str] = []
     used: list[Deal] = []
@@ -82,28 +82,14 @@ def digest_caption(deals: list[Deal], day: date, part: int, parts: int,
     for d in deals:
         mark = RECORD if d.is_record else REGULAR
         price = uah(d.new_price)
-        visible = tg_len(f"{mark} {d.title} {keycaps(d.discount)} {price}") + 1
+        visible = tg_len(f"{mark} {d.title} −{d.discount}% {price}") + 1
         if budget - visible < 0:
             break
-        rows.append(f"{mark} {_game_link(d)} {keycaps(d.discount)} {price}")
+        rows.append(f"{mark} {_game_link(d)} <code>−{d.discount}%</code> {price}")
         used.append(d)
         budget -= visible
-    return "\n".join(head + rows + legend), used
-
-
-def split_digest(deals: list[Deal], day: date, max_parts: int,
-                 channel: str | None = None) -> list[tuple[str, list[Deal]]]:
-    """Split deals into up to max_parts captions that each fit Telegram's limit."""
-    # First pass to know how many parts we need, second to number them right.
-    chunks: list[list[Deal]] = []
-    rest = deals
-    while rest and len(chunks) < max_parts:
-        _, used = digest_caption(rest, day, 1, max_parts, channel)
-        if not used:
-            break
-        chunks.append(used)
-        rest = rest[len(used):]
-    return [digest_caption(c, day, i + 1, len(chunks), channel) for i, c in enumerate(chunks)]
+    body = [f"<blockquote expandable>{chr(10).join(rows)}</blockquote>"] if rows else []
+    return "\n".join(head + body + legend), used
 
 
 def format_top(deals: list[Deal], limit: int = 10) -> str:

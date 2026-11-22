@@ -58,12 +58,12 @@ def build_dispatcher(s: Settings, store: PostedDeals) -> Dispatcher:
 
     @dp.message(Command("filter"))
     async def show_filter(msg: Message) -> None:
-        digest = f"щодня о {s.digest_hour}:00 (Київ)" if s.digest_hour >= 0 else "вимкнена"
+        hours = ", ".join(f"{h}:00" for h in s.digest_hours) or "вимкнена"
         await msg.answer(
             f"⚙️ Знижка від <b>{s.min_discount}%</b>, від <b>{s.min_reviews}</b> відгуків, "
             f"від <b>{s.min_positive}%</b> позитивних\n"
-            f"Окремі пости: <b>{'тільки рекордні знижки' if s.records_only else 'всі знижки'}</b>\n"
-            f"Добірка: <b>{digest}</b>, до {s.digest_parts} повідомлень"
+            f"Окремі пости: <b>{'рекордні знижки' if s.records_only else 'всі знижки'}</b>, до {s.max_singles_per_day} на день\n"
+            f"Добірки (Київ): <b>{hours}</b>"
         )
 
     return dp
