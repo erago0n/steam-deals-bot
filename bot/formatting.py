@@ -14,8 +14,8 @@ MONTHS = [
 ]
 KEYCAPS = {str(i): f"{i}️⃣" for i in range(10)}
 
-RECORD = "🟢"
-REGULAR = "🔥"
+RECORD = "🔥"
+REGULAR = "🎮"
 
 CAPTION_LIMIT = 1000  # photo captions are limited to 1024 characters
 
@@ -72,9 +72,9 @@ def digest_caption(deals: list[Deal], day: date, channel: str | None = None,
     Returns the caption and the deals that fit (photo captions are capped by Telegram).
     """
     head = [f"⚡️ <b>ЗНИЖКИ!</b> НА {human_date(day).upper()}", "", "Відкриваємо вкладку:"]
-    legend = ["", "🔥 — Беру", "🤷‍♂️ — Нічого цікавого", "", f"{RECORD} — рекордна знижка"]
+    legend = ["", f"{RECORD} — рекордна знижка", "", "❤️ — Беру", "🤷‍♂️ — Нічого цікавого"]
     if channel:
-        legend += [channel]
+        legend += ["", channel]
 
     rows: list[str] = []
     used: list[Deal] = []
