@@ -1,71 +1,69 @@
 # Steam Deals Bot 🎮🔥
 
-A Telegram bot that finds the best Steam discounts and auto-posts them to a Telegram channel.
+A Telegram bot that scans **every discounted game on Steam**, picks the ones worth buying and posts them to a Telegram channel, with a generated cover image for the daily digest. Runs for free in the cloud on GitHub Actions.
 
-- **Two free data sources, no API keys:** Steam Store specials + CheapShark (Steam deals with user ratings)
-- **Smart filters:** minimum discount %, maximum price
-- **No duplicates:** posted deals are stored in SQLite; a game can be posted again in a future sale
-- **Rich posts:** cover image, old vs new price, discount %, Steam rating, sale end date, buy link
-- **Bot commands:** `/top` shows the current best deals, `/filter` shows the active filter
-- **Fault-tolerant:** if one source is down, the other keeps working; errors never stop the loop
-- **Docker-ready:** one command to deploy on any VPS
+- **Full coverage:** scans the whole Steam specials list (thousands of games) via the Steam store search, with local (UAH) prices
+- **Quality filter:** minimum discount, minimum number of reviews and % positive, so no shovelware
+- **Record lows:** checks the all-time lowest price (CheapShark) and highlights record deals
+- **Two post types:**
+  - single post for every record-low deal: cover, Ukrainian description, UAH + USD price, review score
+  - daily digest: **one message with a generated collage image** (hero banner + grid with prices and discount badges) and the full list of linked games in the caption, split into several parts if needed
+- **No duplicates:** SQLite state; the digest only shows deals that were not in a previous digest
+- **Free cloud hosting:** GitHub Actions runs it every 30 minutes and keeps the state in a `state` branch
+- **Optional always-on mode** with bot commands `/top`, `/digest`, `/filter`
 
-## Example post
+## Run in the cloud (GitHub Actions, free)
 
+1. Fork / push this repo to GitHub (public repos get free Actions minutes).
+2. Add the bot token as a secret: **Settings → Secrets and variables → Actions → New repository secret** → `BOT_TOKEN`.
+3. Optionally add **variables** (same page, *Variables* tab): `CHANNEL_ID`, `MIN_DISCOUNT`, `MIN_REVIEWS`, `MIN_POSITIVE`, `POSTS_PER_CHECK`, `DIGEST_HOUR`, `DIGEST_PARTS`.
+4. Open **Actions → Steam deals bot → Run workflow** for the first run. After that it runs every 30 minutes by itself.
+
+## Run locally (always-on, with commands)
+
+```bash
+cp .env.example .env   # fill BOT_TOKEN and CHANNEL_ID
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m bot.main     # or: python -m bot.run_once  for a single cycle
 ```
-🔥🔥🔥 Battlefield 3
 
-💸 $39.99 → $1.99  (−95%)
-⭐ Mostly Positive (70%)
+Docker:
 
-🛒 Купити в Steam
+```bash
+docker build -t steam-deals-bot .
+docker run -d --restart unless-stopped --env-file .env -v $(pwd)/data:/app/data steam-deals-bot
 ```
 
-## Quick start
-
-1. Create a bot with [@BotFather](https://t.me/BotFather) and copy the token.
-2. Create a Telegram channel and add the bot as an **admin** (permission to post).
-3. Configure:
-   ```bash
-   cp .env.example .env   # then fill BOT_TOKEN and CHANNEL_ID
-   ```
-4. Run locally:
-   ```bash
-   python3 -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
-   python -m bot.main
-   ```
-   or with Docker:
-   ```bash
-   docker build -t steam-deals-bot .
-   docker run -d --restart unless-stopped --env-file .env -v $(pwd)/data:/app/data steam-deals-bot
-   ```
-
-## Configuration (`.env`)
+## Configuration
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BOT_TOKEN` | — | Token from BotFather |
+| `BOT_TOKEN` | — | Token from @BotFather |
 | `CHANNEL_ID` | — | `@channel_name` or numeric id `-100…` |
-| `MIN_DISCOUNT` | `50` | Only post deals with at least this % off |
-| `MAX_PRICE` | `30` | Only post deals cheaper than this (USD) |
-| `CHECK_EVERY_MIN` | `30` | How often to check for new deals |
-| `POSTS_PER_CHECK` | `5` | Max posts per check (avoids flooding the channel) |
-| `COUNTRY` | `us` | Steam region for prices |
+| `MIN_DISCOUNT` | `50` | Minimum discount, % |
+| `MIN_REVIEWS` | `300` | Minimum number of Steam user reviews |
+| `MIN_POSITIVE` | `70` | Minimum % of positive reviews |
+| `MAX_SCAN` | `2000` | How many discounted games to scan per run (most relevant first) |
+| `POSTS_PER_CHECK` | `2` | Single posts per run |
+| `RECORDS_ONLY` | `true` | Single posts only for all-time-low prices |
+| `DIGEST_HOUR` | `20` | Daily digest hour (Kyiv time), `-1` to disable |
+| `DIGEST_PARTS` | `3` | Max digest messages per day |
 
 ## Project structure
 
 ```
 bot/
-  sources.py     # Steam + CheapShark fetchers → unified Deal objects
-  storage.py     # SQLite de-duplication
-  formatting.py  # Telegram HTML message templates
-  config.py      # .env settings
-  main.py        # aiogram bot, commands and scheduler
+  sources.py     # Steam search (all discounts), CheapShark record lows, Steam appdetails
+  formatting.py  # Telegram HTML templates (single post, digest captions)
+  image.py       # digest collage image (Pillow)
+  core.py        # one posting cycle: single posts + daily digest
+  run_once.py    # cloud entry point (GitHub Actions)
+  main.py        # always-on mode with bot commands
+  storage.py     # SQLite: posted deals + cache
+.github/workflows/bot.yml  # runs every 30 min, saves state to the "state" branch
 ```
-
-Adding another store (PlayStation Store, GOG, Epic) = one new fetch function in `sources.py`.
 
 ## Tech
 
-Python 3.11+, aiogram 3, aiohttp, SQLite, Docker.
+Python 3.11+, aiogram 3, aiohttp, Pillow, SQLite, GitHub Actions, Docker.

@@ -1,0 +1,59 @@
+name: Steam deals bot
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes (GitHub may start a few minutes late)
+  workflow_dispatch:          # "Run workflow" button for a manual run
+
+concurrency:
+  group: steam-deals-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: write             # to save data/deals.db to the "state" branch
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load saved state (posted deals, caches)
+        run: |
+          mkdir -p data
+          if git fetch --depth=1 origin state 2>/dev/null; then
+            git show origin/state:deals.db > data/deals.db || rm -f data/deals.db
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          sudo apt-get install -y -qq fonts-dejavu-core >/dev/null
+          pip install -q -r requirements.txt
+
+      - name: Post deals
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL_ID: ${{ vars.CHANNEL_ID || '@steam_znyzhky_ua' }}
+          MIN_DISCOUNT: ${{ vars.MIN_DISCOUNT }}
+          MIN_REVIEWS: ${{ vars.MIN_REVIEWS }}
+          MIN_POSITIVE: ${{ vars.MIN_POSITIVE }}
+          POSTS_PER_CHECK: ${{ vars.POSTS_PER_CHECK }}
+          DIGEST_HOUR: ${{ vars.DIGEST_HOUR }}
+          DIGEST_PARTS: ${{ vars.DIGEST_PARTS }}
+        run: python -m bot.run_once
+
+      - name: Save state
+        if: always()
+        run: |
+          [ -f data/deals.db ] || exit 0
+          cd data
+          git init -q -b state
+          git add deals.db
+          git -c user.name="deals-bot" -c user.email="deals-bot@users.noreply.github.com" commit -qm "state $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" state

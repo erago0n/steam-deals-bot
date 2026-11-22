@@ -1,4 +1,6 @@
-"""Steam Deals Bot: posts the best Steam discounts to a Telegram channel.
+"""Always-on mode: posting loop + bot commands (/top, /digest, /filter).
+
+For the free cloud mode without commands, see run_once.py and .github/workflows/bot.yml.
 
 Run:  python -m bot.main
 """
@@ -10,56 +12,23 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
 from .config import Settings, load_settings
-from .formatting import format_deal, format_top
-from .sources import Deal, fetch_all_deals
+from .core import current_deals, run_cycle, send_digest
+from .formatting import format_top
 from .storage import PostedDeals
 
 log = logging.getLogger("steam_deals_bot")
 
 
-def passes_filter(deal: Deal, s: Settings) -> bool:
-    return deal.discount >= s.min_discount and deal.new_price <= s.max_price
-
-
-async def post_deal(bot: Bot, chat_id: str, deal: Deal) -> None:
-    text = format_deal(deal)
-    if deal.image:
-        try:
-            await bot.send_photo(chat_id, deal.image, caption=text)
-            return
-        except TelegramBadRequest as exc:  # broken image URL -> fall back to text
-            log.info("Photo failed for %s (%s), sending text", deal.title, exc)
-    await bot.send_message(chat_id, text)
-
-
-async def check_and_post(bot: Bot, s: Settings, store: PostedDeals) -> int:
-    deals = [d for d in await fetch_all_deals(s.country) if passes_filter(d, s)]
-    posted = 0
-    for deal in deals:
-        if posted >= s.posts_per_check:
-            break
-        if store.is_posted(deal.key):
-            continue
-        await post_deal(bot, s.channel_id, deal)
-        store.mark_posted(deal.key)
-        posted += 1
-        await asyncio.sleep(3)  # stay well under Telegram's rate limits
-    log.info("Checked %d deals, posted %d new", len(deals), posted)
-    return posted
-
-
 async def scheduler(bot: Bot, s: Settings, store: PostedDeals) -> None:
     while True:
         try:
-            await check_and_post(bot, s, store)
-            store.forget_older_than(days=30)
+            await run_cycle(bot, s, store)
         except Exception:
-            log.exception("Check failed, will retry next cycle")
+            log.exception("Cycle failed, will retry")
         await asyncio.sleep(s.check_every_min * 60)
 
 
@@ -71,20 +40,30 @@ def build_dispatcher(s: Settings, store: PostedDeals) -> Dispatcher:
         await msg.answer(
             "👋 Привіт! Я шукаю найкращі знижки в Steam.\n\n"
             "/top — топ знижок прямо зараз\n"
-            f"/filter — поточний фільтр\n\n"
-            f"Нові знижки публікуються в каналі {s.channel_id}"
+            "/digest — показати, як виглядає добірка\n"
+            "/filter — поточні налаштування\n\n"
+            f"Знижки публікуються в каналі {s.channel_id}"
         )
 
     @dp.message(Command("top"))
     async def top(msg: Message) -> None:
-        deals = [d for d in await fetch_all_deals(s.country) if passes_filter(d, s)]
-        await msg.answer(format_top(deals), disable_web_page_preview=True)
+        await msg.answer("⏳ Шукаю знижки…")
+        await msg.answer(format_top(await current_deals(s, store)), disable_web_page_preview=True)
+
+    @dp.message(Command("digest"))
+    async def digest_preview(msg: Message) -> None:
+        await msg.answer("⏳ Збираю добірку, це займе хвилину…")
+        if not await send_digest(msg.bot, msg.chat.id, s, await current_deals(s, store)):
+            await msg.answer("Зараз немає знижок, що проходять фільтр 🤷")
 
     @dp.message(Command("filter"))
     async def show_filter(msg: Message) -> None:
+        digest = f"щодня о {s.digest_hour}:00 (Київ)" if s.digest_hour >= 0 else "вимкнена"
         await msg.answer(
-            f"⚙️ Знижка від <b>{s.min_discount}%</b>, ціна до <b>${s.max_price:g}</b>, "
-            f"перевірка кожні <b>{s.check_every_min} хв</b>"
+            f"⚙️ Знижка від <b>{s.min_discount}%</b>, від <b>{s.min_reviews}</b> відгуків, "
+            f"від <b>{s.min_positive}%</b> позитивних\n"
+            f"Окремі пости: <b>{'тільки рекордні знижки' if s.records_only else 'всі знижки'}</b>\n"
+            f"Добірка: <b>{digest}</b>, до {s.digest_parts} повідомлень"
         )
 
     return dp
