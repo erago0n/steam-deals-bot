@@ -15,7 +15,7 @@ MONTHS = [
 KEYCAPS = {str(i): f"{i}️⃣" for i in range(10)}
 
 RECORD = "🟢"
-REGULAR = "◼️"
+REGULAR = "🔥"
 
 CAPTION_LIMIT = 1000  # photo captions are limited to 1024 characters
 
@@ -81,11 +81,11 @@ def digest_caption(deals: list[Deal], day: date, channel: str | None = None,
     budget = max_chars - tg_len("\n".join(head + legend))
     for d in deals:
         mark = RECORD if d.is_record else REGULAR
-        price = uah(d.new_price)
-        visible = tg_len(f"{mark} {d.title} −{d.discount}% {price}") + 1
+        price, old = uah(d.new_price), uah(d.old_price)
+        visible = tg_len(f"{mark} {d.title} −{d.discount}% {old} {price}") + 1
         if budget - visible < 0:
             break
-        rows.append(f"{mark} {_game_link(d)} <code>−{d.discount}%</code> {price}")
+        rows.append(f"{mark} {_game_link(d)} <code>−{d.discount}%</code> <s>{old}</s> <b>{price}</b>")
         used.append(d)
         budget -= visible
     body = [f"<blockquote expandable>{chr(10).join(rows)}</blockquote>"] if rows else []
